@@ -1,22 +1,28 @@
-"""Puente entre texto y el simulador de la mosca.
-
-El backend real se conecta cuando sus APIs estén instaladas y validadas. El
-modo diagnóstico permite ejecutar el prototipo en Termux sin dependencias
-pesadas y muestra las señales que recibiría el cerebro.
-"""
+"""Puente entre frases y el simulador real de flybrain."""
 import hashlib
 
 
 class FlyBrainAdapter:
     def __init__(self):
         self.backend = None
+        self.brain = None
+        self.input_cells = None
+        self.output_cells = None
 
     def load(self):
-        try:
-            import flybrain  # type: ignore
-        except ImportError as exc:
-            raise RuntimeError("Backend flybrain no instalado") from exc
-        self.backend = flybrain
+        from flybrain import FlyBrain
+        self.brain = FlyBrain(device="cpu")
+        # LC10a: seguimiento de objetivos; LPLC1: detección de objetos.
+        self.input_cells = [
+            (self.brain.cells(["LC10a"], side="L"), 0.8),
+            (self.brain.cells(["LPLC1"], side="L"), 0.4),
+        ]
+        self.output_cells = {
+            "escape": set(self.brain.cells(["DNp01"], side="L")),
+            "forward": set(self.brain.cells(["DNg100"], side="L")),
+            "steer": set(self.brain.cells(["DNa02"], side="L")),
+            "backward": set(self.brain.cells(["MDN"], side="L")),
+        }
 
     @staticmethod
     def encode_phrase(phrase: str) -> list[float]:
@@ -24,17 +30,23 @@ class FlyBrainAdapter:
         return [round(byte / 255, 3) for byte in digest[:8]]
 
     def think(self, phrase: str) -> dict:
-        features = self.encode_phrase(phrase)
-        if self.backend is None:
-            return {
-                "modo": "diagnóstico",
-                "mensaje": phrase,
-                "señales": features,
-                "nota": "flybrain aún no está instalado; todavía no es una respuesta neuronal real",
-            }
-        raise NotImplementedError("Falta definir el encoder/decoder del backend flybrain")
+        if self.brain is None:
+            self.load()
+        signals = self.encode_phrase(phrase)
+        # Variamos la intensidad con la frase, pero la decisión la produce
+        # la actividad de la red, no una respuesta prefabricada.
+        injection = [(cells, max(0.1, signals[index])) for index, (cells, _) in enumerate(self.input_cells)]
+        fired = set()
+        for _ in range(10):
+            fired.update(self.brain.step(inject=injection))
+        actions = [name for name, cells in self.output_cells.items() if cells & fired]
+        return {
+            "modo": "flybrain-cpu",
+            "mensaje": phrase,
+            "neuronas_activadas": len(fired),
+            "acciones_detectadas": actions or ["sin_comando_detectado"],
+            "nota": "actividad de la red; aún no es lenguaje español generado por la mosca",
+        }
 
-    def decide(self, features: list[float]) -> dict:
-        if self.backend is None:
-            return {"action": "UNKNOWN", "confidence": 0.0, "features": features}
-        raise NotImplementedError("Falta definir el encoder/decoder del experimento")
+    def decide(self, features):
+        return {"action": "UNKNOWN", "confidence": 0.0, "features": features}
