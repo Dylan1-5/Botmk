@@ -1,12 +1,17 @@
-"""Consola para probar Botmk en Termux.
+"""Consola para probar Botmk en Termux y guardar actividad para el decoder."""
+import json
+from datetime import datetime, timezone
+from pathlib import Path
 
-Solo procesa mensajes que comienzan con 'mariposa'.
-"""
 from brain_adapter.fly_adapter import FlyBrainAdapter
+
+
+LOG = Path("data/brain_runs.jsonl")
 
 
 def main():
     brain = FlyBrainAdapter()
+    LOG.parent.mkdir(parents=True, exist_ok=True)
     print("Botmk · modo Termux")
     print("Escribe 'mariposa ' seguido de una frase. 'salir' termina.")
     while True:
@@ -20,7 +25,16 @@ def main():
         if not phrase:
             print("[mosca] recibí el activador, pero falta una frase")
             continue
-        print("mosca>", brain.think(phrase))
+        result = brain.think(phrase)
+        record = {
+            "time": datetime.now(timezone.utc).isoformat(),
+            "text": phrase,
+            "result": result,
+        }
+        with LOG.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        print("mosca>", result)
+        print(f"[guardado] {LOG}")
 
 
 if __name__ == "__main__":
