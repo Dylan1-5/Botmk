@@ -33,18 +33,38 @@ class FlyBrainAdapter:
         if self.brain is None:
             self.load()
         signals = self.encode_phrase(phrase)
-        # Variamos la intensidad con la frase, pero la decisión la produce
-        # la actividad de la red, no una respuesta prefabricada.
-        injection = [(cells, max(0.1, signals[index])) for index, (cells, _) in enumerate(self.input_cells)]
-        fired = set()
-        for _ in range(10):
-            fired.update(self.brain.step(inject=injection))
-        actions = [name for name, cells in self.output_cells.items() if cells & fired]
+        # La decisión la produce la actividad de la red, no una respuesta prefabricada.
+        injection = [(cells, max(0.1, signals[index]))
+                     for index, (cells, _) in enumerate(self.input_cells)]
+        fired_total = set()
+        activity_by_step = []
+        output_totals = {name: 0 for name in self.output_cells}
+
+        for step_number in range(10):
+            fired = set(self.brain.step(inject=injection))
+            fired_total.update(fired)
+            output_counts = {
+                name: len(cells & fired)
+                for name, cells in self.output_cells.items()
+            }
+            for name, count in output_counts.items():
+                output_totals[name] += count
+            activity_by_step.append({
+                "paso": step_number + 1,
+                "neuronas_con_spike": len(fired),
+                "salidas_con_spike": output_counts,
+            })
+
+        actions = [name for name, count in output_totals.items() if count]
         return {
             "modo": "flybrain-cpu",
             "mensaje": phrase,
-            "neuronas_activadas": len(fired),
+            "neuronas_activadas": len(fired_total),
             "acciones_detectadas": actions or ["sin_comando_detectado"],
+            "actividad_detallada": {
+                "pasos": activity_by_step,
+                "salidas_totales": output_totals,
+            },
             "nota": "actividad de la red; aún no es lenguaje español generado por la mosca",
         }
 
