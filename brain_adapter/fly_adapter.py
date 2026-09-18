@@ -69,12 +69,35 @@ class FlyBrainAdapter:
             "mensaje": phrase,
             "neuronas_activadas": len(fired_total),
             "acciones_detectadas": actions or ["sin_comando_detectado"],
+            "decoder_experimental": self.decode_activity(
+                actions or ["sin_comando_detectado"], len(fired_total)
+            ),
             "actividad_detallada": {
                 "pasos": activity_by_step,
                 "salidas_totales": output_totals,
             },
             "nota": "actividad de la red; aún no es lenguaje español generado por la mosca",
         }
+
+    @staticmethod
+    def decode_activity(actions: list[str], neurons_activated: int) -> dict:
+        """Primer decoder interpretable; no pretende ser español aprendido."""
+        action_set = set(actions)
+        if "escape" in action_set:
+            state = "escape"
+        elif "steer" in action_set and "backward" in action_set:
+            state = "direccion_y_retroceso"
+        elif "steer" in action_set:
+            state = "direccion"
+        elif "backward" in action_set:
+            state = "retroceso"
+        elif "forward" in action_set:
+            state = "avance"
+        elif neurons_activated >= 10000:
+            state = "actividad_alta_sin_salida"
+        else:
+            state = "actividad_baja_sin_salida"
+        return {"estado": state, "tipo": "decoder_experimental_reglas"}
 
     def decide(self, features):
         return {"action": "UNKNOWN", "confidence": 0.0, "features": features}
