@@ -1,5 +1,6 @@
 """Puente entre frases y el simulador real de flybrain."""
 import hashlib
+import json
 
 
 class FlyBrainAdapter:
@@ -49,10 +50,17 @@ class FlyBrainAdapter:
             }
             for name, count in output_counts.items():
                 output_totals[name] += count
+            # Firma compacta: permite comparar patrones sin guardar miles de IDs.
+            fired_ids = sorted(int(index) for index in fired)
+            spike_hash = hashlib.sha256(
+                json.dumps(fired_ids, separators=(",", ":")).encode("ascii")
+            ).hexdigest()[:16]
             activity_by_step.append({
                 "paso": step_number + 1,
                 "neuronas_con_spike": len(fired),
                 "salidas_con_spike": output_counts,
+                "firma_spikes": spike_hash,
+                "muestra_spikes": fired_ids[:16],
             })
 
         actions = [name for name, count in output_totals.items() if count]
