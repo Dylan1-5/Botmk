@@ -2,19 +2,25 @@ import fs from 'node:fs'
 import path from 'node:path'
 import readline from 'node:readline'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import P from 'pino'
 import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 
 const prefix = 'nex'
-const sessionDir = process.env.BOTMK_SESSION_DIR || 'sessions_botmk'
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const sessionDir = process.env.BOTMK_SESSION_DIR || path.join(repoRoot, 'sessions_botmk')
 const allowedChat = process.env.BOTMK_ALLOWED_CHAT || ''
 const python = process.env.BOTMK_PYTHON || 'python3'
 let reconnecting = false
 
 function startWorker() {
-  const child = spawn(python, ['-u', '-m', 'botmk_bridge'], { stdio: ['pipe', 'pipe', 'inherit'] })
+  const child = spawn(python, ['-u', '-m', 'botmk_bridge'], {
+    cwd: repoRoot,
+    env: { ...process.env, PYTHONPATH: repoRoot },
+    stdio: ['pipe', 'pipe', 'inherit']
+  })
   const pending = []
   const rl = readline.createInterface({ input: child.stdout })
   rl.on('line', line => { const item = pending.shift(); if (item) item(JSON.parse(line)) })
