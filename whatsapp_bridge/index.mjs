@@ -16,6 +16,29 @@ const ownerPhone = String(process.env.BOTMK_OWNER_PHONE || '50662907002').replac
 const python = process.env.BOTMK_PYTHON || 'python3'
 let reconnecting = false
 
+function extractNumber(value) {
+  if (!value || /@lid(?:$|:)/i.test(String(value))) return ''
+  const number = String(value).split('@')[0].split(':')[0].replace(/\D/g, '')
+  return /^\d{8,15}$/.test(number) ? number : ''
+}
+
+async function resolveSenderNumber(conn, msg, chat) {
+  const key = msg.key || {}
+  for (const candidate of [key.senderPn, key.participantPn, key.participantAlt, key.remoteJidAlt, key.participant]) {
+    const number = extractNumber(candidate)
+    if (number) return number
+  }
+  const lid = key.participant || ''
+  if (String(lid).endsWith('@lid') && chat.endsWith('@g.us')) {
+    try {
+      const metadata = await conn.groupMetadata(chat)
+      const participant = (metadata.participants || []).find(p => p.lid === lid || p.id === lid)
+      return extractNumber(participant?.phoneNumber || participant?.jid || '')
+    } catch (error) { console.error('[Botmk number resolver]', error) }
+  }
+  return ''
+}
+
 function startWorker() {
   const child = spawn(python, ['-u', '-m', 'botmk_bridge'], {
     cwd: repoRoot,
@@ -54,7 +77,7 @@ async function start() {
       if (!text.toLowerCase().startsWith(prefix)) continue
       const phrase = text.slice(prefix.length).trim()
       if (!phrase) continue
-      const sender = String(msg.key?.participant || msg.key?.participantAlt || '').replace(/\D/g, '')
+      const sender = await resolveSenderNumber(conn, msg, chat)
       const command = phrase.toLowerCase()
       if (chat.endsWith('@g.us') && sender === ownerPhone && ['salte', 'vamos', 'sacame'].includes(command)) {
         try {
