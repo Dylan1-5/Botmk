@@ -41,9 +41,9 @@ def process_intent_and_response(user_text: str, result: dict, memory: dict) -> s
         "te duele", "te gusta", "tienes", "sientes", "puedes", "sabes"
     ])
 
-    # 1. ATAQUE O AMENAZA DIRECTA (Solo si hay intención agresiva activa)
-     verbos_ataque = ["te voy", "voy a", "recibe", "toma", "muere", "lanzar", "usar"]
-     palabras_dano = ["matar", "aplastar", "insecticida", "matamoscas", "fuego", "quemar", "golpe"]
+    # 1. ATAQUE O AMENAZA DIRECTA (Corregida la sangría)
+    verbos_ataque = ["te voy", "voy a", "recibe", "toma", "muere", "lanzar", "usar"]
+    palabras_dano = ["matar", "aplastar", "insecticida", "matamoscas", "fuego", "quemar", "golpe"]
     
     es_ataque_directo = (any(v in text_clean for v in verbos_ataque) and any(d in text_clean for d in palabras_dano + ["choque"])) or \
                        (not es_pregunta and any(d in text_clean for d in palabras_dano))
@@ -144,7 +144,6 @@ def main():
     brain = FlyBrainAdapter()
     memory = load_memory()
 
-    # Precalentamiento del sistema
     try:
         brain.think("despertar_sistema_inicial")
     except Exception:
