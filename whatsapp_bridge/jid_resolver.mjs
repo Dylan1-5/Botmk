@@ -46,4 +46,21 @@ async function resolveJidAsync(raw, sock, groupJid = '') {
   return jid
 }
 
-export { normalizeJid, resolveJidAsync }
+function patchGroupMetadata(sock) {
+  if (sock.groupMetadataPatched || typeof sock.groupMetadata !== 'function') return
+  sock.groupMetadataPatched = true
+  const original = sock.groupMetadata.bind(sock)
+  sock.groupMetadata = async (groupJid) => {
+    const metadata = await original(groupJid)
+    if (!metadata?.participants) return metadata
+    const participants = []
+    for (const participant of metadata.participants) {
+      const resolved = await resolveJidAsync(participant.lid || participant.id || participant.jid, sock, groupJid)
+      participants.push({ ...participant, ...(resolved && !resolved.endsWith('@lid') ? { id: resolved } : {}) })
+    }
+    metadata.participants = participants
+    return metadata
+  }
+}
+
+export { normalizeJid, resolveJidAsync, patchGroupMetadata }
