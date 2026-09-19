@@ -4,7 +4,7 @@ import readline from 'node:readline'
 import process from 'node:process'
 import { spawn } from 'node:child_process'
 import P from 'pino'
-import makeWASocket, { useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys'
+import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 
 const prefix = 'nex'
