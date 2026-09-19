@@ -56,14 +56,26 @@ function extractNumber(value) {
 }
 
 async function resolveRawNumber(conn, raw, chat) {
-  const number = extractNumber(raw)
+  const value = String(raw || '')
+  const number = extractNumber(value)
   if (number) return number
-  if (String(raw).endsWith('@lid') && chat.endsWith('@g.us')) {
+  if (value.endsWith('@lid')) {
     try {
-      const metadata = await conn.groupMetadata(chat)
-      const participant = (metadata.participants || []).find(p => p.lid === raw || p.id === raw)
-      return extractNumber(participant?.phoneNumber || participant?.jid || '')
-    } catch (error) { console.error('[Botmk target resolver]', error) }
+      // Prefer Baileys' own LID/Pn mapping, like the interaction command does.
+      if (typeof conn.getPnForLid === 'function') {
+        const pn = await conn.getPnForLid(value)
+        const mapped = extractNumber(pn)
+        if (mapped) return mapped
+      }
+    } catch (error) { console.error('[Botmk LID mapping]', error) }
+    if (chat.endsWith('@g.us')) {
+      try {
+        const metadata = await conn.groupMetadata(chat)
+        const participant = (metadata.participants || []).find(p => p.lid === value || p.id === value)
+        const mapped = extractNumber(participant?.phoneNumber || participant?.jid || '')
+        if (mapped) return mapped
+      } catch (error) { console.error('[Botmk target resolver]', error) }
+    }
   }
   return ''
 }
