@@ -30,6 +30,14 @@ const animeAliases = {
 }
 const animeSymbols = ['(✧ω✧)', '(⌒‿⌒)', '(¬‿¬)', '(*≧ω≦)', '(✿◡‿◡)', '(・o・)', '(ง •̀_•́)ง']
 const animeInteractions = new Set(`angry bleh bored clap coffee dramatic drunk impregnate kisscheek laugh love pout punch run sad scared seduce shy sleep smoke spit step think walk hug kill eat kiss wink pat palm happy bully bite blush wave bath smug smile highfive handhold cringe bonk cry lick slap dance cuddle cold sing tickle scream push nope jump heat gaming draw call snuggle blowkiss trip stare sniff curious thinkhard comfort peek`.split(' '))
+const animeCaptions = {
+  hug: 'abrazó a', kiss: 'le dio un beso a', kisscheek: 'le dio un beso en la mejilla a', slap: 'le dio una bofetada a', punch: 'le dio un puñetazo a',
+  pat: 'le dio una caricia a', wave: 'saludó a', wink: 'le guiñó a', highfive: 'chocó los cinco con', handhold: 'le agarró la mano a',
+  cuddle: 'se acurrucó con', snuggle: 'se acurrucó dulcemente con', tickle: 'le hizo cosquillas a', push: 'empujó a', bite: 'mordió a',
+  love: 'siente atracción por', angry: 'está muy enojado con', sad: 'está triste por', happy: 'está feliz con', dance: 'está bailando con',
+  sing: 'le está cantando a', scream: 'le está gritando a', stare: 'se queda mirando fijamente a', sniff: 'está olfateando a',
+  curious: 'está curioso por lo que hace', comfort: 'está consolando a', peek: 'está espiando a'
+}
 let reconnecting = false
 
 function extractNumber(value) {
@@ -83,9 +91,18 @@ async function sendAnimeReaction(conn, chat, msg, phrase) {
     const videoResponse = await fetch(videoUrl, { headers: { Accept: 'video/mp4', 'User-Agent': 'Botmk/1.0' } })
     if (!videoResponse.ok) throw new Error(`video HTTP ${videoResponse.status}`)
     const buffer = Buffer.from(await videoResponse.arrayBuffer())
+    const sender = await resolveSenderNumber(conn, msg, chat)
+    const context = msg.message?.extendedTextMessage?.contextInfo || {}
+    const targetRaw = context.mentionedJid?.[0] || context.participant || ''
+    const target = extractNumber(targetRaw) || (targetRaw ? String(targetRaw).split('@')[0] : sender)
+    const fromTag = `@${sender || 'usuario'}`
+    const toTag = `@${target || 'usuario'}`
     const symbol = animeSymbols[Math.floor(Math.random() * animeSymbols.length)]
+    const action = animeCaptions[interaction] || `hizo ${interaction} con`
+    const caption = sender === target ? `${fromTag} ${action.replace(/ a$/, '')} ${symbol}.` : `${fromTag} ${action} ${toTag} ${symbol}.`
+    const mentions = [...new Set([sender && `${sender}@s.whatsapp.net`, target && `${target}@s.whatsapp.net`].filter(Boolean))]
     await conn.sendMessage(chat, { video: buffer, mimetype: 'video/mp4', gifPlayback: true,
-      caption: `${symbol} Reacción anime: ${interaction}.`, }, { quoted: msg })
+      caption, mentions }, { quoted: msg })
   } catch (error) {
     await conn.sendMessage(chat, { text: `✿ No pude generar la reacción anime: ${error.message}` }, { quoted: msg })
   }
