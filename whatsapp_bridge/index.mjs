@@ -36,7 +36,10 @@ const animeCaptions = {
   cuddle: 'se acurrucó con', snuggle: 'se acurrucó dulcemente con', tickle: 'le hizo cosquillas a', push: 'empujó a', bite: 'mordió a',
   love: 'siente atracción por', angry: 'está muy enojado con', sad: 'está triste por', happy: 'está feliz con', dance: 'está bailando con',
   sing: 'le está cantando a', scream: 'le está gritando a', stare: 'se queda mirando fijamente a', sniff: 'está olfateando a',
-  curious: 'está curioso por lo que hace', comfort: 'está consolando a', peek: 'está espiando a'
+  curious: 'está curioso por lo que hace', comfort: 'está consolando a', peek: 'está espiando a',
+  cry: 'llora por', scared: 'está asustado por', bored: 'está aburrido de', cringe: 'siente cringe por',
+  blush: 'se sonrojó por', pout: 'hace pucheros con', drunk: 'está borracho con', dramatic: 'le hace un drama a',
+  cold: 'tiene frío por', heat: 'tiene calor por', scared: 'se asustó por'
 }
 let reconnecting = false
 
