@@ -2,7 +2,7 @@
 import json
 import sys
 from brain_adapter.fly_adapter import FlyBrainAdapter
-from modified_mind import ModifiedMind
+from mind.modified_mind import ModifiedMind
 
 
 def response_for(packet: dict) -> str:
