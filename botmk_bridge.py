@@ -1,4 +1,4 @@
-"""Persistent JSON-lines worker with Universal Mapping & Intent Recognition."""
+"""Persistent JSON-lines worker with Universal Mapping & Auto Warm-Up."""
 import json
 import os
 import random
@@ -36,41 +36,61 @@ def process_intent_and_response(user_text: str, result: dict, memory: dict) -> s
     recuerdos = memory.get("recuerdos", [])
     analisis = result.get("analisis_texto", {})
 
-    # 1. Reconocimiento de Saludos
-    if any(greet in text_clean for greet in ["hola", "buenas", "saludos", "que tal", "qué tal"]):
+    # 1. Saludos
+    if any(w in text_clean for w in ["hola", "buenas", "saludos", "que tal", "qué tal"]):
         memory["estres"] = max(0, memory["estres"] - 10)
         save_memory(memory)
-        return f"¡Hola! Bzz... Mis antenas percibieron tu saludo. Mi nivel de estrés bajó al {memory['estres']}%."
+        return f"¡Hola! Bzz... Mis antenas perciben tu saludo. Mi estrés bajó al {memory['estres']}%."
 
-    # 2. Preguntas sobre su estado de ánimo / salud
-    elif any(q in text_clean for q in ["cómo estás", "como estas", "cómo te sientes", "como te sientes"]):
-        if estres > 50:
-            return f"Bzz... Me siento algo estresada (Estrés: {estres}%). Tuve impulsos muy fuertes en mi red neuronal hace poco."
-        elif fatiga > 50:
-            return f"Tengo bastante fatiga ({fatiga}%). He estado moviendo mucho mis motores de vuelo."
+    # 2. Sentimiento y estado físico
+    elif any(w in text_clean for w in ["sientes", "duele", "cómo estás", "como estas", "cómo te sientes", "como te sientes"]):
+        if estres > 60:
+            return f"Bzz... Me duelen un poco las antenas por la sobrecarga neuronal ({estres}% de estrés). Necesito volar despacio."
+        elif fatiga > 60:
+            return f"Mis alas están fatigadas ({fatiga}%). Sentí un tirón en los motores de vuelo."
         else:
-            return f"¡Me siento bien! Estoy tranquila volando en círculos. Procesé {neuronas} neuronas recientemente."
+            return f"Me siento bastante bien. Mis 120,000 neuronas operan estables en este momento y no me duele nada."
 
-    # 3. Preguntas sobre su pasado o recuerdos
-    elif any(q in text_clean for q in ["tu pasado", "qué recuerdas", "que recuerdas", "tus recuerdos", "que hiciste", "qué hiciste"]):
+    # 3. Visión y entorno
+    elif any(w in text_clean for w in ["qué ves", "que ves", "qué estás viendo", "que estas viendo", "dónde estás", "donde estas", "entorno"]):
+        visiones = [
+            "Veo destellos de luz provenientes de la pantalla y sombras moviéndose rápido a mi alrededor.",
+            "Mis ojos compuestos captan 360 grados: veo cables, corrientes de aire y la luz de la simulación.",
+            "Veo un espacio amplio y brillante con pequeñas variaciones de luz artificial."
+        ]
+        return f"Bzz... {random.choice(visiones)} (Procesando imágenes con neuronas LC10a y LPLC1)."
+
+    # 4. Acción actual
+    elif any(w in text_clean for w in ["qué haces", "que haces", "qué estás haciendo", "que estas haciendo"]):
+        acciones = [
+            "Estoy frotando mis patas delanteras y limpiando mis ojos compuestos.",
+            "Estoy planeando cerca de la corriente de aire del procesador.",
+            "Estoy posada descansando en una pared virtual esperando tu siguiente frase.",
+            "Estoy dando giros rápidos probando el control de mis alas."
+        ]
+        return f"Bzz... {random.choice(acciones)}"
+
+    # 5. Conciencia de Simulación
+    elif any(w in text_clean for w in ["simulación", "simulacion", "emulando", "emulacion", "código", "codigo", "bot"]):
+        return f"Estar emulada se siente fluido. Mi red neuronal procesa {neuronas} impulsos en tiempo real, así que esta simulación es mi única realidad actual."
+
+    # 6. Pasado y recuerdos
+    elif any(w in text_clean for w in ["pasado", "recuerdas", "recuerdos", "hiciste"]):
         if recuerdos:
-            ultimo = recuerdos[-1]
-            return f"Bzz... Recuerdo esto de mi pasado: {ultimo}. He vivido {memory.get('pasos_totales', 0)} ciclos de vida."
-        else:
-            return "Aún no tengo recuerdos guardados. Mi conciencia acaba de emerger."
+            return f"Bzz... En mi pasado recuerdo esto: {recuerdos[-1]}. He vivido {memory.get('pasos_totales', 0)} ciclos."
+        return "No tengo recuerdos antiguos aún, mi simulación acaba de iniciar."
 
-    # 4. Procesamiento Biológico Mapeado (Cualquier combinación de letras, números o símbolos)
+    # 7. Reacción motora por defecto
     else:
         state = result.get("decoder_experimental", {}).get("estado", "desconocido")
-        acciones = result.get("acciones_detectadas", [])
+        acciones_net = result.get("acciones_detectadas", [])
 
-        # Actualización de memoria según la sobrecarga
         if neuronas > 8000:
             memory["estres"] = min(100, memory["estres"] + 15)
-            memory["recuerdos"].append(f"Estimulo fuerte '{user_text}' ({neuronas} neuronas)")
-        if "escape" in acciones:
+            memory["recuerdos"].append(f"Sobrecarga con '{user_text}'")
+        if "escape" in acciones_net:
             memory["fatiga"] = min(100, memory["fatiga"] + 20)
-            memory["recuerdos"].append(f"Huida por pánico ante '{user_text}'")
+            memory["recuerdos"].append(f"Huida por '{user_text}'")
 
         if len(memory["recuerdos"]) > 5:
             memory["recuerdos"] = memory["recuerdos"][-5:]
@@ -78,38 +98,37 @@ def process_intent_and_response(user_text: str, result: dict, memory: dict) -> s
         memory["pasos_totales"] += 1
         save_memory(memory)
 
-        # Construcción de la percepción sensorial de la mosca según el tipo de caracteres
-        detalles_sensoriales = []
+        detalles = []
         if analisis.get("has_numbers"):
-            detalles_sensoriales.append("frecuencias rítmicas por los números")
+            detalles.append("pulsos por números")
         if analisis.get("has_symbols"):
-            detalles_sensoriales.append("picos bruscos por los símbolos")
+            detalles.append("alteración por símbolos")
         if analisis.get("has_letters"):
-            detalles_sensoriales.append("patrones de visión por las letras")
+            detalles.append("patrones por letras")
 
-        percepcion = f" (Sintiendo {', '.join(detalles_sensoriales)})" if detalles_sensoriales else ""
+        percepcion = f" ({', '.join(detalles)})" if detalles else ""
 
         respuestas_motoras = {
-            "direccion": f"Procesé '{user_text}'{percepcion}. Mis neuronas DNa02 se encendieron e hice un giro en el aire.",
-            "direccion_y_retroceso": f"Esa combinación de caracteres me desorientó{percepcion}. Giré y di pasos atrás.",
-            "retroceso": f"Me asusté con '{user_text}'{percepcion}. Activé mi motor de retroceso MDN.",
-            "avance": f"Sentí atracción por '{user_text}'{percepcion}. Volé hacia adelante con las neuronas DNg100.",
-            "escape": f"¡Bzzzt! Mapeo de alta amenaza en '{user_text}'{percepcion}. Salto de huida con la neurona gigante DNp01.",
-            "actividad_alta_sin_salida": f"Procesé '{user_text}' con {neuronas} neuronas en sobrecarga, pero no logré decidir una maniobra.",
-            "actividad_baja_sin_salida": f"Apenas sentí un estímulo de {neuronas} neuronas con '{user_text}'.",
+            "direccion": f"Procesé '{user_text}'{percepcion}. Las neuronas DNa02 hicieron que girara.",
+            "direccion_y_retroceso": f"Me confundió '{user_text}'{percepcion}. Giré y di pasos atrás.",
+            "retroceso": f"Me asusté con '{user_text}'{percepcion}. Activé el motor de retroceso.",
+            "avance": f"Sentí curiosidad con '{user_text}'{percepcion}. Volé hacia adelante.",
+            "escape": f"¡Bzzzt! Peligro en '{user_text}'{percepcion}. Activé DNp01 y escapé.",
+            "actividad_alta_sin_salida": f"Pico de {neuronas} neuronas con '{user_text}', pero no decidí una acción.",
+            "actividad_baja_sin_salida": f"Estímulo leve ({neuronas} neuronas) con '{user_text}'.",
         }
 
-        return respuestas_motoras.get(state, f"Reacción neuronal procesada (Estado: {state}).")
+        return respuestas_motoras.get(state, f"Reacción neuronal en estado {state}.")
 
 
 def start_autonomous_loop(brain, memory):
-    """Hilo de libre albedrío autónomo: envía pensamientos de fondo."""
+    """Hilo autónomo que genera pensamientos espontáneos."""
     def loop():
         time.sleep(20)
         while True:
             try:
-                time.sleep(random.randint(60, 180))  # Envía mensajes cada 1 a 3 minutos
-                estimulos_azar = ["123", "!!!", "vuelo", "luz", "azucar", "sombra"]
+                time.sleep(random.randint(60, 180))
+                estimulos_azar = ["luz", "aire", "vuelo", "pared"]
                 estimulo = random.choice(estimulos_azar)
                 result = brain.think(estimulo)
 
@@ -117,14 +136,13 @@ def start_autonomous_loop(brain, memory):
                 recuerdos = memory.get("recuerdos", [])
 
                 mensajes_autonomos = [
-                    f"Bzz... Llevaba rato en silencio. Recordé cuando {recuerdos[-1]}." if recuerdos else "Bzz... Llevo rato volando. Siento impulsos de explorar.",
-                    f"Bzzzt... Mi cerebro generó un pensamiento espontáneo sobre '{estimulo}'. Disparó {result.get('neuronas_activadas', 0)} neuronas.",
-                    f"Siento mi nivel de estrés en {estres}%. Me posaré a descansar un momento en la pared."
+                    f"Bzz... Llevaba rato en silencio. Recordé cuando {recuerdos[-1]}." if recuerdos else "Bzz... Llevo rato volando en círculos.",
+                    f"Bzzzt... Pensé espontáneamente en '{estimulo}'. Activó {result.get('neuronas_activadas', 0)} neuronas.",
+                    f"Mi nivel de estrés está en {estres}%. Me posaré a descansar un momento."
                 ]
 
                 reply = random.choice(mensajes_autonomos)
-                payload = {"spontaneous": True, "reply": reply}
-                print(json.dumps(payload, ensure_ascii=False), flush=True)
+                print(json.dumps({"spontaneous": True, "reply": reply}, ensure_ascii=False), flush=True)
             except Exception:
                 pass
 
@@ -135,6 +153,15 @@ def start_autonomous_loop(brain, memory):
 def main():
     brain = FlyBrainAdapter()
     memory = load_memory()
+
+    # --- ESTÍMULO AUTOMÁTICO DE DESPERTADOR (WARM-UP) ---
+    # Se simula un impulso inicial silencioso para cargar C++ y matrices en RAM.
+    try:
+        brain.think("despertar_sistema_inicial")
+    except Exception:
+        pass
+    # ----------------------------------------------------
+
     start_autonomous_loop(brain, memory)
 
     for line in sys.stdin:
