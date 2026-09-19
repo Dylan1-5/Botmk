@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process'
 import P from 'pino'
 import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
+import { resolveJidAsync } from './jid_resolver.mjs'
 
 const prefix = 'nex'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -56,28 +57,15 @@ function extractNumber(value) {
 }
 
 async function resolveRawNumber(conn, raw, chat) {
-  const value = String(raw || '')
-  const number = extractNumber(value)
-  if (number) return number
-  if (value.endsWith('@lid')) {
-    try {
-      // Prefer Baileys' own LID/Pn mapping, like the interaction command does.
-      if (typeof conn.getPnForLid === 'function') {
-        const pn = await conn.getPnForLid(value)
-        const mapped = extractNumber(pn)
-        if (mapped) return mapped
-      }
-    } catch (error) { console.error('[Botmk LID mapping]', error) }
-    if (chat.endsWith('@g.us')) {
-      try {
-        const metadata = await conn.groupMetadata(chat)
-        const participant = (metadata.participants || []).find(p => p.lid === value || p.id === value)
-        const mapped = extractNumber(participant?.phoneNumber || participant?.jid || '')
-        if (mapped) return mapped
-      } catch (error) { console.error('[Botmk target resolver]', error) }
-    }
+  const direct = extractNumber(raw)
+  if (direct) return direct
+  try {
+    const resolved = await resolveJidAsync(raw, conn, chat)
+    return extractNumber(resolved)
+  } catch (error) {
+    console.error('[Botmk LID resolver]', error)
+    return ''
   }
-  return ''
 }
 
 async function isGroupModerator(conn, chat, sender) {
@@ -95,16 +83,8 @@ async function isGroupModerator(conn, chat, sender) {
 async function resolveSenderNumber(conn, msg, chat) {
   const key = msg.key || {}
   for (const candidate of [key.senderPn, key.participantPn, key.participantAlt, key.remoteJidAlt, key.participant]) {
-    const number = extractNumber(candidate)
+    const number = await resolveRawNumber(conn, candidate, chat)
     if (number) return number
-  }
-  const lid = key.participant || ''
-  if (String(lid).endsWith('@lid') && chat.endsWith('@g.us')) {
-    try {
-      const metadata = await conn.groupMetadata(chat)
-      const participant = (metadata.participants || []).find(p => p.lid === lid || p.id === lid)
-      return extractNumber(participant?.phoneNumber || participant?.jid || '')
-    } catch (error) { console.error('[Botmk number resolver]', error) }
   }
   return ''
 }
