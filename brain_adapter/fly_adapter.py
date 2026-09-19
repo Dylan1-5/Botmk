@@ -12,19 +12,16 @@ class FlyBrainAdapter:
         self.output_cells = None
 
     def load(self):
-        """Carga el modelo y mapea las regiones cerebrales de la mosca."""
         try:
             from flybrain import FlyBrain
             self.brain = FlyBrain(device="cpu")
             
-            # Mapeo de entradas según el tipo de estímulo
             self.input_cells = {
-                "vision_objetos": self.brain.cells(["LC10a"], side="L"),    # Estructura de palabras
-                "vision_movimiento": self.brain.cells(["LPLC1"], side="L"), # Símbolos y signos
-                "cuerpos_hongo": self.brain.cells(["MBON"], side="L"),      # Conceptos y memoria
+                "vision_objetos": self.brain.cells(["LC10a"], side="L"),
+                "vision_movimiento": self.brain.cells(["LPLC1"], side="L"),
+                "cuerpos_hongo": self.brain.cells(["MBON"], side="L"),
             }
             
-            # Mapeo de salidas motoras
             self.output_cells = {
                 "escape": set(self.brain.cells(["DNp01"], side="L")),
                 "forward": set(self.brain.cells(["DNg100"], side="L")),
@@ -32,15 +29,10 @@ class FlyBrainAdapter:
                 "backward": set(self.brain.cells(["MDN"], side="L")),
             }
         except Exception as err:
-            # Enviar advertencias a sys.stderr para no romper la comunicación JSON con Node.js
             print(f"[FlyBrain Warning] Modo simulación fallback activo: {err}", file=sys.stderr)
             self.brain = None
 
     def map_text_to_neural_signals(self, text: str) -> dict:
-        """
-        Mapea CUALQUIER texto (palabras, letras, números, símbolos) 
-        a un vector de estimulación neuronal preciso.
-        """
         has_numbers = bool(re.search(r'\d', text))
         has_letters = bool(re.search(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ]', text))
         has_symbols = bool(re.search(r'[^\w\s]', text))
@@ -50,13 +42,6 @@ class FlyBrainAdapter:
         stim_vision = round(sha[0] / 255.0, 3)
         stim_memory = round(sha[1] / 255.0, 3)
         stim_motion = round(sha[2] / 255.0, 3)
-
-        if has_numbers:
-            stim_motion = min(1.0, stim_motion + 0.3)
-        if has_symbols:
-            stim_vision = min(1.0, stim_vision + 0.4)
-        if len(text) > 15:
-            stim_memory = min(1.0, stim_memory + 0.3)
 
         return {
             "has_numbers": has_numbers,
@@ -131,11 +116,10 @@ class FlyBrainAdapter:
         neuronas = int((sig["vision"] + sig["memory"] + sig["motion"]) * 5000)
         
         actions = []
-        if mapping["has_symbols"] or sig["motion"] > 0.7:
-            actions.append("escape")
-        if mapping["has_numbers"] or sig["vision"] > 0.6:
+        # Corregido: la velocidad o el movimiento activan avance o giro, no pánico automático
+        if sig["motion"] > 0.6:
             actions.append("steer")
-        if sig["memory"] > 0.5:
+        if sig["memory"] > 0.4:
             actions.append("forward")
 
         return {
@@ -172,8 +156,6 @@ class FlyBrainAdapter:
             state = "retroceso"
         elif "forward" in action_set:
             state = "avance"
-        elif neurons_activated >= 10000:
-            state = "actividad_alta_sin_salida"
         else:
             state = "actividad_baja_sin_salida"
 
