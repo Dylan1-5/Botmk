@@ -1,11 +1,1 @@
-{
-  "name": "botmk-whatsapp-bridge",
-  "private": true,
-  "type": "module",
-  "scripts": {"start": "node whatsapp_bridge/index.mjs"},
-  "dependencies": {
-    "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "^6.7.18",
-    "pino": "^9.4.0"
-  }
-}
+{"name":"botmk-whatsapp-bridge","private":true,"type":"module","scripts":{"start":"node index.mjs"},"dependencies":{"@hapi/boom":"^10.0.1","@whiskeysockets/baileys":"^6.7.18","pino":"^9.4.0"}}
