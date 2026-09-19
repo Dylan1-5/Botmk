@@ -72,9 +72,12 @@ async function isGroupModerator(conn, chat, sender) {
   if (sender === ownerPhone) return true
   try {
     const metadata = await conn.groupMetadata(chat)
-    const participant = (metadata.participants || []).find(p => extractNumber(p.phoneNumber || p.jid || p.id) === sender)
-    return participant?.admin === 'admin' || participant?.admin === 'superadmin'
-  } catch (error) { console.error('[Botmk admin check]', error); return false }
+    for (const participant of metadata.participants || []) {
+      const number = await resolveRawNumber(conn, participant.phoneNumber || participant.jid || participant.id || '', chat)
+      if (number === sender) return participant.admin === 'admin' || participant.admin === 'superadmin'
+    }
+  } catch (error) { console.error('[Botmk admin check]', error) }
+  return false
 }
 
 async function resolveSenderNumber(conn, msg, chat) {
