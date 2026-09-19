@@ -20,10 +20,16 @@ const animeAliases = {
   feliz: 'happy', triste: 'sad', amor: 'love', beso: 'kiss', muak: 'kiss', cafe: 'coffee',
   aburrido: 'bored', drama: 'dramatic', timido: 'shy', correr: 'run', llorar: 'cry',
   reir: 'laugh', abrazo: 'hug', bailar: 'dance', guiño: 'wink', wink: 'wink',
-  curioso: 'curious', pensar: 'think', dormir: 'sleep', saludar: 'wave', enojado: 'angry',
-  grito: 'scream', salto: 'jump', cosquillas: 'tickle', nope: 'nope', bofetada: 'slap'
+  curioso: 'curious', pensar: 'think', pensarfuerte: 'thinkhard', dormir: 'sleep', saludar: 'wave', enojado: 'angry',
+  grito: 'scream', salto: 'jump', cosquillas: 'tickle', nope: 'nope', bofetada: 'slap',
+  morder: 'bite', sonrojo: 'blush', caminar: 'walk', pegar: 'punch', acariciar: 'pat',
+  palmada: 'palm', guiñar: 'wink', cantar: 'sing', empujar: 'push', calor: 'heat',
+  jugar: 'gaming', dibujar: 'draw', llamar: 'call', acurrucar: 'snuggle', tropezar: 'trip',
+  mirar: 'stare', oler: 'sniff', consolar: 'comfort', espiar: 'peek', frio: 'cold',
+  gritar: 'scream', darbeso: 'blowkiss', acurrucarse: 'cuddle', cosquillear: 'tickle'
 }
 const animeSymbols = ['(✧ω✧)', '(⌒‿⌒)', '(¬‿¬)', '(*≧ω≦)', '(✿◡‿◡)', '(・o・)', '(ง •̀_•́)ง']
+const animeInteractions = new Set(`angry bleh bored clap coffee dramatic drunk impregnate kisscheek laugh love pout punch run sad scared seduce shy sleep smoke spit step think walk hug kill eat kiss wink pat palm happy bully bite blush wave bath smug smile highfive handhold cringe bonk cry lick slap dance cuddle cold sing tickle scream push nope jump heat gaming draw call snuggle blowkiss trip stare sniff curious thinkhard comfort peek`.split(' '))
 let reconnecting = false
 
 function extractNumber(value) {
@@ -61,7 +67,7 @@ function isViewQuestion(value) {
 async function sendAnimeReaction(conn, chat, msg, phrase) {
   const words = normalizeText(phrase).split(/\s+/)
   const requested = words[0] === 'anime' ? words[1] : words[0]
-  const interaction = animeAliases[requested] || (words[0] === 'anime' ? requested : '')
+  const interaction = animeAliases[requested] || (words[0] === 'anime' ? requested : (animeInteractions.has(words[0]) ? words[0] : ''))
   if (!interaction) return false
   if (!reactionsApiKey) {
     await conn.sendMessage(chat, { text: '⚠️ La reacción anime está instalada, pero falta configurar BOTMK_REACTIONS_API_KEY.' }, { quoted: msg })
