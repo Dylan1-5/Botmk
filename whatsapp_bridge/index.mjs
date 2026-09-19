@@ -39,6 +39,30 @@ async function resolveSenderNumber(conn, msg, chat) {
   return ''
 }
 
+function normalizeText(value) {
+  return String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+function isViewQuestion(value) {
+  const text = normalizeText(value)
+  return text.includes('que estas viendo') || text.includes('que ves') || text.includes('que estas mirando')
+}
+
+async function sendIllustratedView(conn, chat, msg, state) {
+  const scenes = [
+    [`👁️ *Lo que percibo ahora*\n\n╭─ antenas ─╮\n│  ~ ~ ~   │\n╰──────────╯\n\nEstado: ${state}\nPercibo actividad en mi entorno.`, `👁️ *Actualizando percepción*\n\n╭─ antenas ─╮\n│  ~  ✦  ~ │\n╰──────────╯\n       ↓\n  señales neuronales\n\nEstado: ${state}`],
+    [`🧠 *Procesando la escena*\n\n   .-^- .\n  ( o o )\n   | ^ |\n  /|___|\\\n\nEstoy relacionando lo percibido con mi actividad.`, `🧠 *Procesando la escena*\n\n   .-^- .\n  ( • • )  ✦\n   | ~ |\n  /|___|\\\n\nDetecto cambios y movimiento.`],
+    [`✅ *Percepción experimental*\n\nNo es una imagen real: es una ilustración textual de mi estado.\n\nResultado: ${state}`,
+     `✅ *Percepción experimental actualizada*\n\nNo tengo visión humana en este puente. Represento en texto la actividad que detecto.\n\nResultado: ${state}`]
+  ]
+  for (const frames of scenes) {
+    const sent = await conn.sendMessage(chat, { text: frames[0] }, { quoted: msg })
+    await new Promise(resolve => setTimeout(resolve, 900))
+    await conn.sendMessage(chat, { text: frames[1], edit: sent.key })
+    await new Promise(resolve => setTimeout(resolve, 900))
+  }
+}
+
 function startWorker() {
   const child = spawn(python, ['-u', '-m', 'botmk_bridge'], {
     cwd: repoRoot,
@@ -94,6 +118,13 @@ async function start() {
       try {
         const result = await worker.ask(phrase)
         if (result.ok) {
+          if (isViewQuestion(phrase)) {
+            const state = result.result?.mind?.estado_interno || 'actividad experimental'
+            await conn.sendPresenceUpdate('composing', chat)
+            await sendIllustratedView(conn, chat, msg, state)
+            await conn.sendPresenceUpdate('paused', chat)
+            continue
+          }
           await conn.sendPresenceUpdate('composing', chat)
           const delayMs = Math.min(2500, Math.max(400, result.reply.length * 28))
           await new Promise(resolve => setTimeout(resolve, delayMs))
