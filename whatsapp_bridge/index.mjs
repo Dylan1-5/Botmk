@@ -14,6 +14,16 @@ const sessionDir = process.env.BOTMK_SESSION_DIR || path.join(repoRoot, 'session
 const allowedChat = process.env.BOTMK_ALLOWED_CHAT || ''
 const ownerPhone = String(process.env.BOTMK_OWNER_PHONE || '50662907002').replace(/\D/g, '')
 const python = process.env.BOTMK_PYTHON || 'python3'
+const reactionsApi = process.env.BOTMK_REACTIONS_API || 'https://api.alyacore.xyz/sfw/interaction'
+const reactionsApiKey = process.env.BOTMK_REACTIONS_API_KEY || ''
+const animeAliases = {
+  feliz: 'happy', triste: 'sad', amor: 'love', beso: 'kiss', muak: 'kiss', cafe: 'coffee',
+  aburrido: 'bored', drama: 'dramatic', timido: 'shy', correr: 'run', llorar: 'cry',
+  reir: 'laugh', abrazo: 'hug', bailar: 'dance', guiño: 'wink', wink: 'wink',
+  curioso: 'curious', pensar: 'think', dormir: 'sleep', saludar: 'wave', enojado: 'angry',
+  grito: 'scream', salto: 'jump', cosquillas: 'tickle', nope: 'nope', bofetada: 'slap'
+}
+const animeSymbols = ['(✧ω✧)', '(⌒‿⌒)', '(¬‿¬)', '(*≧ω≦)', '(✿◡‿◡)', '(・o・)', '(ง •̀_•́)ง']
 let reconnecting = false
 
 function extractNumber(value) {
@@ -46,6 +56,34 @@ function normalizeText(value) {
 function isViewQuestion(value) {
   const text = normalizeText(value)
   return text.includes('que estas viendo') || text.includes('que ves') || text.includes('que estas mirando')
+}
+
+async function sendAnimeReaction(conn, chat, msg, phrase) {
+  const words = normalizeText(phrase).split(/\s+/)
+  const requested = words[0] === 'anime' ? words[1] : words[0]
+  const interaction = animeAliases[requested] || (words[0] === 'anime' ? requested : '')
+  if (!interaction) return false
+  if (!reactionsApiKey) {
+    await conn.sendMessage(chat, { text: '⚠️ La reacción anime está instalada, pero falta configurar BOTMK_REACTIONS_API_KEY.' }, { quoted: msg })
+    return true
+  }
+  try {
+    const endpoint = `${reactionsApi}?inter=${encodeURIComponent(interaction)}&key=${encodeURIComponent(reactionsApiKey)}`
+    const response = await fetch(endpoint)
+    if (!response.ok) throw new Error(`API HTTP ${response.status}`)
+    const data = await response.json()
+    const videoUrl = data?.result
+    if (!videoUrl) throw new Error('la API no devolvió un video')
+    const videoResponse = await fetch(videoUrl, { headers: { Accept: 'video/mp4', 'User-Agent': 'Botmk/1.0' } })
+    if (!videoResponse.ok) throw new Error(`video HTTP ${videoResponse.status}`)
+    const buffer = Buffer.from(await videoResponse.arrayBuffer())
+    const symbol = animeSymbols[Math.floor(Math.random() * animeSymbols.length)]
+    await conn.sendMessage(chat, { video: buffer, mimetype: 'video/mp4', gifPlayback: true,
+      caption: `${symbol} Reacción anime: ${interaction}.`, }, { quoted: msg })
+  } catch (error) {
+    await conn.sendMessage(chat, { text: `✿ No pude generar la reacción anime: ${error.message}` }, { quoted: msg })
+  }
+  return true
 }
 
 async function sendIllustratedView(conn, chat, msg, state) {
@@ -131,6 +169,7 @@ async function start() {
         } catch (error) { console.error('[Botmk group command]', error) }
         continue
       }
+      if (await sendAnimeReaction(conn, chat, msg, phrase)) continue
       try {
         const result = await worker.ask(phrase)
         if (result.ok) {
