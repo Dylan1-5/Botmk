@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+import sys
 
 
 class FlyBrainAdapter:
@@ -31,7 +32,8 @@ class FlyBrainAdapter:
                 "backward": set(self.brain.cells(["MDN"], side="L")),
             }
         except Exception as err:
-            print(f"[FlyBrain Warning] Modo simulación fallback activo: {err}")
+            # Enviar advertencias a sys.stderr para no romper la comunicación JSON con Node.js
+            print(f"[FlyBrain Warning] Modo simulación fallback activo: {err}", file=sys.stderr)
             self.brain = None
 
     def map_text_to_neural_signals(self, text: str) -> dict:
@@ -39,26 +41,22 @@ class FlyBrainAdapter:
         Mapea CUALQUIER texto (palabras, letras, números, símbolos) 
         a un vector de estimulación neuronal preciso.
         """
-        # 1. Análisis de tipo de contenido
         has_numbers = bool(re.search(r'\d', text))
         has_letters = bool(re.search(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ]', text))
         has_symbols = bool(re.search(r'[^\w\s]', text))
         
-        # 2. Hash criptográfico para garantizar que CADA palabra tenga una firma única
         sha = hashlib.sha256(text.encode("utf-8")).digest()
         
-        # 3. Mapeo de frecuencias de estímulo (0.0 a 1.0)
         stim_vision = round(sha[0] / 255.0, 3)
         stim_memory = round(sha[1] / 255.0, 3)
         stim_motion = round(sha[2] / 255.0, 3)
 
-        # Ajustes según el tipo de caracteres
         if has_numbers:
-            stim_motion = min(1.0, stim_motion + 0.3) # Los números generan alta frecuencia
+            stim_motion = min(1.0, stim_motion + 0.3)
         if has_symbols:
-            stim_vision = min(1.0, stim_vision + 0.4) # Los símbolos alteran la visión
+            stim_vision = min(1.0, stim_vision + 0.4)
         if len(text) > 15:
-            stim_memory = min(1.0, stim_memory + 0.3) # Frases largas activan memoria
+            stim_memory = min(1.0, stim_memory + 0.3)
 
         return {
             "has_numbers": has_numbers,
@@ -79,11 +77,9 @@ class FlyBrainAdapter:
         mapping = self.map_text_to_neural_signals(phrase)
         signals = mapping["signals"]
 
-        # Si no hay motor C++ disponible, simula el mapeo biológico de forma determinista
         if self.brain is None:
             return self._fallback_think(phrase, mapping)
 
-        # Inyección de impulsos en las regiones cerebrales correspondientes
         injection = [
             (self.input_cells["vision_objetos"], signals["vision"]),
             (self.input_cells["vision_movimiento"], signals["motion"]),
@@ -95,7 +91,6 @@ class FlyBrainAdapter:
         output_steps = {name: [] for name in self.output_cells}
         peak_activity = 0
 
-        # Ejecución de la red neuronal por 10 pasos
         for step_number in range(10):
             try:
                 fired = set(self.brain.step(inject=injection))
@@ -132,7 +127,6 @@ class FlyBrainAdapter:
         }
 
     def _fallback_think(self, phrase: str, mapping: dict) -> dict:
-        """Calcula la respuesta biológica si la librería C++ no está presente."""
         sig = mapping["signals"]
         neuronas = int((sig["vision"] + sig["memory"] + sig["motion"]) * 5000)
         
