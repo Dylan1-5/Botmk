@@ -46,6 +46,19 @@ function extractNumber(value) {
   return /^\d{8,15}$/.test(number) ? number : ''
 }
 
+async function resolveRawNumber(conn, raw, chat) {
+  const number = extractNumber(raw)
+  if (number) return number
+  if (String(raw).endsWith('@lid') && chat.endsWith('@g.us')) {
+    try {
+      const metadata = await conn.groupMetadata(chat)
+      const participant = (metadata.participants || []).find(p => p.lid === raw || p.id === raw)
+      return extractNumber(participant?.phoneNumber || participant?.jid || '')
+    } catch (error) { console.error('[Botmk target resolver]', error) }
+  }
+  return ''
+}
+
 async function resolveSenderNumber(conn, msg, chat) {
   const key = msg.key || {}
   for (const candidate of [key.senderPn, key.participantPn, key.participantAlt, key.remoteJidAlt, key.participant]) {
@@ -94,7 +107,7 @@ async function sendAnimeReaction(conn, chat, msg, phrase) {
     const sender = await resolveSenderNumber(conn, msg, chat)
     const context = msg.message?.extendedTextMessage?.contextInfo || {}
     const targetRaw = context.mentionedJid?.[0] || context.participant || ''
-    const target = extractNumber(targetRaw) || (targetRaw ? String(targetRaw).split('@')[0] : sender)
+    const target = await resolveRawNumber(conn, targetRaw, chat) || sender
     const fromTag = `@${sender || 'usuario'}`
     const toTag = `@${target || 'usuario'}`
     const symbol = animeSymbols[Math.floor(Math.random() * animeSymbols.length)]
