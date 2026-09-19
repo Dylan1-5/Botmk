@@ -68,6 +68,15 @@ async function resolveRawNumber(conn, raw, chat) {
   return ''
 }
 
+async function isGroupModerator(conn, chat, sender) {
+  if (sender === ownerPhone) return true
+  try {
+    const metadata = await conn.groupMetadata(chat)
+    const participant = (metadata.participants || []).find(p => extractNumber(p.phoneNumber || p.jid || p.id) === sender)
+    return participant?.admin === 'admin' || participant?.admin === 'superadmin'
+  } catch (error) { console.error('[Botmk admin check]', error); return false }
+}
+
 async function resolveSenderNumber(conn, msg, chat) {
   const key = msg.key || {}
   for (const candidate of [key.senderPn, key.participantPn, key.participantAlt, key.remoteJidAlt, key.participant]) {
@@ -213,6 +222,17 @@ async function start() {
             await conn.groupLeave(chat)
           }
         } catch (error) { console.error('[Botmk group command]', error) }
+        continue
+      }
+      if (chat.endsWith('@g.us') && command === 'quitar' || (chat.endsWith('@g.us') && command.startsWith('quitar '))) {
+        if (!(await isGroupModerator(conn, chat, sender))) continue
+        const context = msg.message?.extendedTextMessage?.contextInfo || {}
+        const targetRaw = context.mentionedJid?.[0] || context.participant || ''
+        const target = await resolveRawNumber(conn, targetRaw, chat)
+        if (!target) continue
+        try {
+          await conn.groupParticipantsUpdate(chat, [`${target}@s.whatsapp.net`], 'remove')
+        } catch (error) { console.error('[Botmk quitar]', error) }
         continue
       }
       if (await sendAnimeReaction(conn, chat, msg, phrase)) continue
