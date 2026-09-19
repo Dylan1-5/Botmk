@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process'
 import P from 'pino'
 import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
-import { resolveJidAsync } from './jid_resolver.mjs'
+import { resolveJidAsync, patchGroupMetadata } from './jid_resolver.mjs'
 
 const prefix = 'nex'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -186,6 +186,7 @@ async function start() {
   const conn = makeWASocket({ version, logger: P({ level: 'silent' }), printQRInTerminal: false,
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, P({ level: 'silent' })) },
     browser: ['Botmk', 'Ubuntu', '1.0'], syncFullHistory: false, markOnlineOnConnect: true })
+  patchGroupMetadata(conn)
   conn.ev.on('creds.update', saveCreds)
   if (!state.creds.registered) {
     const phone = String(process.env.BOTMK_PHONE || '').replace(/\D/g, '')
