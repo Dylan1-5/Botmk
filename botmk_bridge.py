@@ -1,4 +1,4 @@
-"""Persistent JSON-lines worker for the WhatsApp bridge with Fly Brain Memory & Autonomy."""
+"""Persistent JSON-lines worker with Universal Mapping & Intent Recognition."""
 import json
 import os
 import random
@@ -9,6 +9,7 @@ from brain_adapter.fly_adapter import FlyBrainAdapter
 
 MEMORY_FILE = "fly_memory.json"
 
+
 def load_memory():
     if os.path.exists(MEMORY_FILE):
         try:
@@ -16,12 +17,8 @@ def load_memory():
                 return json.load(f)
         except Exception:
             pass
-    return {
-        "estres": 10,
-        "fatiga": 0,
-        "recuerdos": [],
-        "pasos_totales": 0
-    }
+    return {"estres": 10, "fatiga": 0, "recuerdos": [], "pasos_totales": 0}
+
 
 def save_memory(memory):
     try:
@@ -30,80 +27,101 @@ def save_memory(memory):
     except Exception:
         pass
 
-def update_memory_state(memory, result, user_text):
-    memory["pasos_totales"] += 1
-    neuronas = result.get("neuronas_activadas", 0)
-    acciones = result.get("acciones_detectadas", [])
 
-    # Modificar estrés y fatiga según la carga recibida
-    if neuronas > 10000:
-        memory["estres"] = min(100, memory["estres"] + 20)
-        memory["recuerdos"].append(f"Sobrecarga de {neuronas} neuronas con '{user_text}'")
-    else:
-        memory["estres"] = max(0, memory["estres"] - 5)
-
-    if "escape" in acciones:
-        memory["fatiga"] = min(100, memory["fatiga"] + 25)
-        memory["recuerdos"].append("Tuve que dar un salto de huida por pánico.")
-
-    # Guardar solo los últimos 5 recuerdos pasados
-    if len(memory["recuerdos"]) > 5:
-        memory["recuerdos"] = memory["recuerdos"][-5:]
-
-    save_memory(memory)
-
-def response_for(result: dict, memory: dict, user_text: str) -> str:
-    state = result.get("decoder_experimental", {}).get("estado", "desconocido")
+def process_intent_and_response(user_text: str, result: dict, memory: dict) -> str:
+    text_clean = user_text.lower().strip()
     neuronas = result.get("neuronas_activadas", 0)
     estres = memory.get("estres", 0)
     fatiga = memory.get("fatiga", 0)
     recuerdos = memory.get("recuerdos", [])
+    analisis = result.get("analisis_texto", {})
 
-    respuestas_motoras = {
-        "direccion": f"Bzz... Al procesar '{user_text}', mis neuronas DNa02 se encendieron. Cambié de dirección en el aire.",
-        "direccion_y_retroceso": f"Esa frase me sacudió. Mis motores me hicieron girar y dar un paso atrás.",
-        "retroceso": f"Me asusté un poco con '{user_text}'. Activé mi motor de retroceso.",
-        "avance": f"Siento curiosidad por '{user_text}'. Mis neuronas DNg100 me impulsan a volar hacia adelante.",
-        "escape": f"¡Bzzzt! Siento peligro. Activé mi neurona gigante DNp01 y di un salto de huida instantáneo.",
-        "actividad_alta_sin_salida": f"¡Uff! Mi cerebro tuvo un pico de {neuronas} neuronas encendidas, pero no supe a dónde volar.",
-        "actividad_baja_sin_salida": f"Apenas sentí un cosquilleo en mis antenas ({neuronas} neuronas). Casi no me hizo efecto.",
-    }
+    # 1. Reconocimiento de Saludos
+    if any(greet in text_clean for greet in ["hola", "buenas", "saludos", "que tal", "qué tal"]):
+        memory["estres"] = max(0, memory["estres"] - 10)
+        save_memory(memory)
+        return f"¡Hola! Bzz... Mis antenas percibieron tu saludo. Mi nivel de estrés bajó al {memory['estres']}%."
 
-    base_msg = respuestas_motoras.get(state, f"Siento algo raro en mi red neuronal (Estado: {state}).")
+    # 2. Preguntas sobre su estado de ánimo / salud
+    elif any(q in text_clean for q in ["cómo estás", "como estas", "cómo te sientes", "como te sientes"]):
+        if estres > 50:
+            return f"Bzz... Me siento algo estresada (Estrés: {estres}%). Tuve impulsos muy fuertes en mi red neuronal hace poco."
+        elif fatiga > 50:
+            return f"Tengo bastante fatiga ({fatiga}%). He estado moviendo mucho mis motores de vuelo."
+        else:
+            return f"¡Me siento bien! Estoy tranquila volando en círculos. Procesé {neuronas} neuronas recientemente."
 
-    emocion = ""
-    if estres > 60:
-        emocion = f" Siento mucho estrés ({estres}%) acumulado."
-    elif fatiga > 50:
-        emocion = f" Mis alas están agotadas (Fatiga: {fatiga}%)."
+    # 3. Preguntas sobre su pasado o recuerdos
+    elif any(q in text_clean for q in ["tu pasado", "qué recuerdas", "que recuerdas", "tus recuerdos", "que hiciste", "qué hiciste"]):
+        if recuerdos:
+            ultimo = recuerdos[-1]
+            return f"Bzz... Recuerdo esto de mi pasado: {ultimo}. He vivido {memory.get('pasos_totales', 0)} ciclos de vida."
+        else:
+            return "Aún no tengo recuerdos guardados. Mi conciencia acaba de emerger."
 
-    recuerdo_msg = ""
-    if recuerdos and random.random() < 0.5:
-        recuerdo_msg = f" Aún recuerdo mi pasado reciente: {recuerdos[-1]}."
+    # 4. Procesamiento Biológico Mapeado (Cualquier combinación de letras, números o símbolos)
+    else:
+        state = result.get("decoder_experimental", {}).get("estado", "desconocido")
+        acciones = result.get("acciones_detectadas", [])
 
-    return f"{base_msg}{emocion}{recuerdo_msg}"
+        # Actualización de memoria según la sobrecarga
+        if neuronas > 8000:
+            memory["estres"] = min(100, memory["estres"] + 15)
+            memory["recuerdos"].append(f"Estimulo fuerte '{user_text}' ({neuronas} neuronas)")
+        if "escape" in acciones:
+            memory["fatiga"] = min(100, memory["fatiga"] + 20)
+            memory["recuerdos"].append(f"Huida por pánico ante '{user_text}'")
+
+        if len(memory["recuerdos"]) > 5:
+            memory["recuerdos"] = memory["recuerdos"][-5:]
+
+        memory["pasos_totales"] += 1
+        save_memory(memory)
+
+        # Construcción de la percepción sensorial de la mosca según el tipo de caracteres
+        detalles_sensoriales = []
+        if analisis.get("has_numbers"):
+            detalles_sensoriales.append("frecuencias rítmicas por los números")
+        if analisis.get("has_symbols"):
+            detalles_sensoriales.append("picos bruscos por los símbolos")
+        if analisis.get("has_letters"):
+            detalles_sensoriales.append("patrones de visión por las letras")
+
+        percepcion = f" (Sintiendo {', '.join(detalles_sensoriales)})" if detalles_sensoriales else ""
+
+        respuestas_motoras = {
+            "direccion": f"Procesé '{user_text}'{percepcion}. Mis neuronas DNa02 se encendieron e hice un giro en el aire.",
+            "direccion_y_retroceso": f"Esa combinación de caracteres me desorientó{percepcion}. Giré y di pasos atrás.",
+            "retroceso": f"Me asusté con '{user_text}'{percepcion}. Activé mi motor de retroceso MDN.",
+            "avance": f"Sentí atracción por '{user_text}'{percepcion}. Volé hacia adelante con las neuronas DNg100.",
+            "escape": f"¡Bzzzt! Mapeo de alta amenaza en '{user_text}'{percepcion}. Salto de huida con la neurona gigante DNp01.",
+            "actividad_alta_sin_salida": f"Procesé '{user_text}' con {neuronas} neuronas en sobrecarga, pero no logré decidir una maniobra.",
+            "actividad_baja_sin_salida": f"Apenas sentí un estímulo de {neuronas} neuronas con '{user_text}'.",
+        }
+
+        return respuestas_motoras.get(state, f"Reacción neuronal procesada (Estado: {state}).")
+
 
 def start_autonomous_loop(brain, memory):
-    """Hilo autónomo (Libre albedrío): Habla por sí sola en intervalos aleatorios."""
+    """Hilo de libre albedrío autónomo: envía pensamientos de fondo."""
     def loop():
         time.sleep(20)
         while True:
             try:
-                time.sleep(random.randint(60, 180))  # Envía mensaje cada 1 a 3 minutos
-                
-                estimulos_azar = ["aire", "vuelo", "luz", "sombra", "azucar", "peligro"]
+                time.sleep(random.randint(60, 180))  # Envía mensajes cada 1 a 3 minutos
+                estimulos_azar = ["123", "!!!", "vuelo", "luz", "azucar", "sombra"]
                 estimulo = random.choice(estimulos_azar)
                 result = brain.think(estimulo)
-                
+
                 estres = memory.get("estres", 0)
                 recuerdos = memory.get("recuerdos", [])
-                
+
                 mensajes_autonomos = [
-                    f"Bzz... Llevaba rato en silencio. Estaba recordando cuando {recuerdos[-1]}." if recuerdos else "Bzz... Llevo rato volando en círculos. Siento ganas de explorar.",
-                    f"Bzzzt... Tuve un pensamiento espontáneo sobre '{estimulo}'. Disparó {result.get('neuronas_activadas', 0)} neuronas en mi cerebro.",
-                    f"Siento que mi nivel de estrés está en {estres}%. Necesito descansar sobre una pared un momento."
+                    f"Bzz... Llevaba rato en silencio. Recordé cuando {recuerdos[-1]}." if recuerdos else "Bzz... Llevo rato volando. Siento impulsos de explorar.",
+                    f"Bzzzt... Mi cerebro generó un pensamiento espontáneo sobre '{estimulo}'. Disparó {result.get('neuronas_activadas', 0)} neuronas.",
+                    f"Siento mi nivel de estrés en {estres}%. Me posaré a descansar un momento en la pared."
                 ]
-                
+
                 reply = random.choice(mensajes_autonomos)
                 payload = {"spontaneous": True, "reply": reply}
                 print(json.dumps(payload, ensure_ascii=False), flush=True)
@@ -113,10 +131,10 @@ def start_autonomous_loop(brain, memory):
     thread = threading.Thread(target=loop, daemon=True)
     thread.start()
 
+
 def main():
     brain = FlyBrainAdapter()
     memory = load_memory()
-    
     start_autonomous_loop(brain, memory)
 
     for line in sys.stdin:
@@ -124,13 +142,12 @@ def main():
             request = json.loads(line)
             user_text = str(request.get("text", ""))
             result = brain.think(user_text)
-            
-            update_memory_state(memory, result, user_text)
-            reply = response_for(result, memory, user_text)
-            
+
+            reply = process_intent_and_response(user_text, result, memory)
             print(json.dumps({"ok": True, "reply": reply, "result": result}, ensure_ascii=False), flush=True)
         except Exception as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False), flush=True)
+
 
 if __name__ == "__main__":
     main()
