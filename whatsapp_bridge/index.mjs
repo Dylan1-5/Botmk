@@ -39,7 +39,13 @@ const animeCaptions = {
   curious: 'está curioso por lo que hace', comfort: 'está consolando a', peek: 'está espiando a',
   cry: 'llora por', scared: 'está asustado por', bored: 'está aburrido de', cringe: 'siente cringe por',
   blush: 'se sonrojó por', pout: 'hace pucheros con', drunk: 'está borracho con', dramatic: 'le hace un drama a',
-  cold: 'tiene frío por', heat: 'tiene calor por', scared: 'se asustó por'
+  cold: 'tiene frío por', heat: 'tiene calor por',
+}
+const emotionalInteractions = new Set(['cry', 'sad', 'scared', 'bored', 'cringe', 'blush', 'pout', 'drunk', 'cold', 'heat', 'angry', 'happy'])
+const directEmotionCaptions = {
+  cry: 'llora con', sad: 'comparte tristeza con', scared: 'se pone nervioso con', bored: 'se aburre con', cringe: 'siente cringe con',
+  blush: 'se sonroja con', pout: 'hace pucheros con', drunk: 'está borracho con', cold: 'tiene frío con', heat: 'tiene calor con',
+  angry: 'se enoja con', happy: 'está feliz con'
 }
 let reconnecting = false
 
@@ -109,13 +115,14 @@ async function sendAnimeReaction(conn, chat, msg, phrase) {
     const buffer = Buffer.from(await videoResponse.arrayBuffer())
     const sender = await resolveSenderNumber(conn, msg, chat)
     const context = msg.message?.extendedTextMessage?.contextInfo || {}
+    const isReply = Boolean(context.participant && (context.quotedMessage || context.stanzaId))
     const targetRaw = context.mentionedJid?.[0] || context.participant || ''
     const target = await resolveRawNumber(conn, targetRaw, chat) || sender
     const fromTag = `@${sender || 'usuario'}`
     const toTag = `@${target || 'usuario'}`
     const symbol = animeSymbols[Math.floor(Math.random() * animeSymbols.length)]
-    const action = animeCaptions[interaction] || `hizo ${interaction} con`
-    const caption = sender === target ? `${fromTag} ${action.replace(/ a$/, '')} ${symbol}.` : `${fromTag} ${action} ${toTag} ${symbol}.`
+    const action = (!isReply && emotionalInteractions.has(interaction) ? directEmotionCaptions[interaction] : null) || animeCaptions[interaction] || `hizo ${interaction} con`
+    const caption = sender === target ? `${fromTag} ${action.replace(/ (a|por|con|de)$/, '')} ${symbol}.` : `${fromTag} ${action} ${toTag} ${symbol}.`
     const mentions = [...new Set([sender && `${sender}@s.whatsapp.net`, target && `${target}@s.whatsapp.net`].filter(Boolean))]
     await conn.sendMessage(chat, { video: buffer, mimetype: 'video/mp4', gifPlayback: true,
       caption, mentions }, { quoted: msg })
