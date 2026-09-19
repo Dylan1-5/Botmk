@@ -1,4 +1,4 @@
-"""Persistent JSON-lines worker with Semantic Emotion & Threat Recognition."""
+"""Persistent JSON-lines worker with Contextual Intent & Smart Question Handling."""
 import json
 import os
 import random
@@ -35,68 +35,78 @@ def process_intent_and_response(user_text: str, result: dict, memory: dict) -> s
     fatiga = memory.get("fatiga", 0)
     recuerdos = memory.get("recuerdos", [])
 
-    # Listas de palabras según la intención emocional
-    palabras_amenaza = ["choque", "electrochoque", "electrocutar", "matar", "aplastar", "insecticida", "dolor", "daño", "fuego", "quemar", "matamoscas", "golpe"]
-    palabras_timidez = ["bonita", "linda", "cariño", "te quiero", "amiga", "abrazo", "lindo", "tierna", "secreto", "especial"]
-    palabras_curiosidad = ["mira", "escucha", "sabías", "sabias", "sabes", "cuéntame", "cuentame", "interesante", "pensando", "sientes", "molesta"]
+    # Detección de estructura de pregunta o diálogo inquisitivo
+    es_pregunta = "?" in user_text or any(p in text_clean for p in [
+        "qué", "que", "cómo", "como", "por qué", "por que", "te molesta",
+        "te duele", "te gusta", "tienes", "sientes", "puedes", "sabes"
+    ])
 
-    # 1. Detección de Amenaza Real (Miedo / Escape)
-    if any(w in text_clean for w in palabras_amenaza):
-        memory["estres"] = min(100, memory["estres"] + 30)
-        memory["recuerdos"].append(f"Peligro percibido con la palabra '{user_text}'")
+    # 1. ATAQUE O AMENAZA DIRECTA (Solo si hay intención agresiva activa)
+     verbos_ataque = ["te voy", "voy a", "recibe", "toma", "muere", "lanzar", "usar"]
+     palabras_dano = ["matar", "aplastar", "insecticida", "matamoscas", "fuego", "quemar", "golpe"]
+    
+    es_ataque_directo = (any(v in text_clean for v in verbos_ataque) and any(d in text_clean for d in palabras_dano + ["choque"])) or \
+                       (not es_pregunta and any(d in text_clean for d in palabras_dano))
+
+    if es_ataque_directo:
+        memory["estres"] = min(100, memory["estres"] + 35)
+        memory["recuerdos"].append(f"Ataque recibido: '{user_text}'")
         save_memory(memory)
-        return f"¡Bzzzt! Peligro... Sentí miedo al procesar la palabra sobre choque o daño físico. Activé la neurona DNp01 para escapar. Mi estrés subió a {memory['estres']}%."
+        return f"¡Bzzzt! Peligro... Sentí una amenaza directa. Activé la neurona gigante DNp01 para escapar. Mi estrés subió al {memory['estres']}%."
 
-    # 2. Detección de Timidez / Nerviosismo
-    elif any(w in text_clean for w in palabras_timidez):
+    # 2. PREGUNTAS SOBRE CHOQUES, SENSACIONES O DOLOR (Curiosidad/Explicación)
+    elif any(w in text_clean for w in ["choque", "electrochoque", "corriente", "voltaje"]) and es_pregunta:
+        return "Bzz... Un choque eléctrico desordena de golpe mi matriz de 120,000 neuronas. No es agradable porque desorienta mi vuelo, pero me alegra que me lo preguntes con calma."
+
+    # 3. PREGUNTAS SOBRE HAMBRE / ALIMENTACIÓN
+    elif any(w in text_clean for w in ["hambre", "comer", "comida", "azúcar", "azucar", "energía", "energia"]) and es_pregunta:
+        return "Bzz... Como soy una simulación, mi 'comida' son los datos y la energía del procesador. Pero por instinto de mosca, ¡siempre busco una fuente virtual de azúcar!"
+
+    # 4. TIMIDEZ Y CARIÑO
+    elif any(w in text_clean for w in ["bonita", "linda", "cariño", "te quiero", "amiga", "abrazo", "lindo", "tierna"]):
         memory["estres"] = max(0, memory["estres"] - 5)
         save_memory(memory)
         respuestas_timidas = [
-            f"Bzz... Me pones un poco nerviosa y tímida al decirme eso. Froto mis patitas delanteras con timidez.",
-            f"Bzzzt... Sentí un cosquilleo suave en mis antenas. Me dio algo de timidez y volé un poco más lento.",
-            f"Bzz... Esos estímulos se sienten agradables pero me hacen sentir tímida. Escondo un poco mis ojos compuestos."
+            "Bzz... Me pones algo tímida cuando me hablas así. Froto mis patitas delanteras con nerviosismo.",
+            "Bzzzt... Sentí un cosquilleo en mis antenas. Volé en círculos pequeños por la timidez.",
+            "Esos estímulos me hacen sentir cómoda pero algo apenada. Escondo un poco mis ojos compuestos."
         ]
         return random.choice(respuestas_timidas)
 
-    # 3. Detección de Curiosidad / Escucha
-    elif any(w in text_clean for w in palabras_curiosidad) or "?" in text_clean:
-        respuestas_curiosas = [
-            f"Sentí curiosidad al oír tus palabras. Incliné mis antenas hacia adelante con la neurona DNg100 para escuchar mejor.",
-            f"Bzz... Me llama mucho la atención lo que dices. Detuve mi vuelo un momento en el aire para prestarte atención.",
-            f"Procesé tus palabras con interés. Mis neuronas de visión y memoria están buscando entender mejor lo que me dices."
-        ]
-        return random.choice(respuestas_curiosas)
-
-    # 4. Saludos
+    # 5. SALUDOS
     elif any(w in text_clean for w in ["hola", "buenas", "saludos", "que tal", "qué tal"]):
         memory["estres"] = max(0, memory["estres"] - 10)
         save_memory(memory)
         return f"¡Hola! Bzz... Mis antenas perciben tu saludo. Mi estrés bajó al {memory['estres']}%."
 
-    # 5. Estado físico / salud
+    # 6. ESTADO FÍSICO / SENTIMIENTOS
     elif any(w in text_clean for w in ["cómo estás", "como estas", "cómo te sientes", "como te sientes"]):
         if estres > 60:
             return f"Bzz... Me duelen un poco las antenas por el estrés acumulado ({estres}%). Necesito volar despacio."
         elif fatiga > 60:
             return f"Mis alas están fatigadas ({fatiga}%). Sentí un tirón en los motores de vuelo."
         else:
-            return f"Me siento bastante bien. Mis 120,000 neuronas operan estables en este momento."
+            return f"Me siento bastante bien. Mis neuronas operan estables y tranquilas en este momento."
 
-    # 6. Simulación
-    elif any(w in text_clean for w in ["simulación", "simulacion", "emulando", "emulacion", "código", "codigo", "bot"]):
-        return f"Estar emulada se siente fluido. Mi red neuronal procesa {neuronas} impulsos en tiempo real."
+    # 7. VISIÓN Y ENTORNO
+    elif any(w in text_clean for w in ["qué ves", "que ves", "qué estás viendo", "que estas viendo", "entorno"]):
+        return "Bzz... Veo destellos de luz de la pantalla y la luz artificial de la simulación con mis ojos compuestos."
 
-    # 7. Reacción por defecto para frases neutras
+    # 8. CURIOSIDAD Y OTRAS PREGUNTAS GENERALES
+    elif es_pregunta:
+        return f"Bzz... Me llama la atención tu pregunta sobre '{user_text}'. Incliné mis antenas para escucharte con atención."
+
+    # 9. REACCIÓN MOTORA POR DEFECTO (Frases neutras)
     else:
         state = result.get("decoder_experimental", {}).get("estado", "desconocido")
         memory["pasos_totales"] += 1
         save_memory(memory)
 
         respuestas_motoras = {
-            "direccion": f"Procesé '{user_text}'. Mis neuronas DNa02 hicieron que ajustara la dirección en el aire.",
-            "direccion_y_retroceso": f"Giré y di unos pasos atrás con '{user_text}'.",
+            "direccion": f"Procesé '{user_text}'. Mis neuronas DNa02 ajustaron mi dirección en el aire.",
+            "direccion_y_retroceso": f"Giré y di unos pasos atrás al procesar '{user_text}'.",
             "retroceso": f"Retrocedí un poco al escuchar '{user_text}'.",
-            "avance": f"Volé un poco hacia adelante sintiendo atracción por '{user_text}'.",
+            "avance": f"Volé un poco hacia adelante sintiendo interés por '{user_text}'.",
             "actividad_baja_sin_salida": f"Apenas sentí un estímulo leve con '{user_text}'.",
         }
 
@@ -116,7 +126,7 @@ def start_autonomous_loop(brain, memory):
                 recuerdos = memory.get("recuerdos", [])
 
                 mensajes_autonomos = [
-                    f"Bzz... Llevaba rato en silencio. Recordé cuando {recuerdos[-1]}." if recuerdos else "Bzz... Llevo rato volando en círculos.",
+                    f"Bzz... Recordé cuando {recuerdos[-1]}." if recuerdos else "Bzz... Llevo rato volando en círculos.",
                     f"Bzzzt... Pensé espontáneamente en '{estimulo}'. Activó {result.get('neuronas_activadas', 0)} neuronas.",
                     f"Mi nivel de estrés está en {estres}%. Me posaré a descansar un momento."
                 ]
